@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Nebula Serpent — Rajini Edition</title>
+  <style>
+    :root{--bg:#020617;--panel:#061025;--accent:#7efcda;--muted:#9fb0c8}
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;color:#e6eef8;-webkit-tap-highlight-color:transparent; overflow: hidden;}
+    body{display:flex;align-items:center;justify-content:center;background:radial-gradient(1200px 600px at 20% 20%, rgba(14,24,43,0.6), transparent 8%), linear-gradient(180deg,#021026 0%, #021017 100%);}
+    .wrap{width:min(900px, 95vw);height:100%;padding:16px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);box-shadow:0 20px 50px rgba(2,6,23,0.7); display: flex; flex-direction: column;}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px; flex-shrink: 0;}
+    h1{font-size:18px;margin:0}
+    .meta{font-size:13px;color:var(--muted)}
+    .content{display:flex;gap:16px; flex-grow: 1; min-height: 0;}
+    .game{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);padding:12px;border-radius:10px; display: flex; flex-direction: column; align-items: center; justify-content: center;}
+    canvas{display:block;border-radius:10px;background:linear-gradient(180deg, rgba(0,0,0,0.12), transparent); width: 100%; height: auto; aspect-ratio: 1 / 1; max-width: 640px;}
+    .controls{display:flex; flex-wrap: wrap; justify-content: center; gap:8px;margin-top:10px}
+    button{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);padding:8px 10px;border-radius:8px;font-size:13px; cursor: pointer;}
+    .sidebar{min-width:220px;padding:12px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent); overflow-y: auto;}
+    .score{font-size:22px;color:var(--accent);margin-bottom:6px}
+    .small{font-size:12px;color:var(--muted)}
+    .legend{margin-top:10px; text-align: left;}
+    .legend-item{display:flex;align-items:center;gap:8px;margin:6px 0}
+    .dot{width:14px;height:14px;border-radius:50%}
+    .mobile-controls { display: none; }
+    
+    @media (max-width: 760px) {
+      body { overflow: auto; }
+      .wrap { height: auto; min-height: 100%; }
+      .content {
+        flex-direction: column;
+      }
+      .controls {
+        display: none;
+      }
+      .game {
+        align-items: center;
+      }
+      .sidebar {
+        min-width: unset;
+        text-align: left;
+      }
+      .mobile-controls {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(3, 1fr);
+        gap: 12px;
+        width: 180px;
+        height: 180px;
+        margin: 20px auto 0;
+        flex-shrink: 0;
+      }
+      .mobile-controls button {
+        font-size: 28px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #upBtn    { grid-area: 1 / 2 / 2 / 3; }
+      #leftBtn  { grid-area: 2 / 1 / 3 / 2; }
+      #rightBtn { grid-area: 2 / 3 / 3 / 4; }
+      #downBtn  { grid-area: 3 / 2 / 4 / 3; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Nebula Serpent</h1>
+        <div class="meta">Smooth-segment movement • Dash + power-fruits • Procedural neon visuals</div>
+      </div>
+      <div class="meta">Unique source & mechanics for you</div>
+    </header>
+    <div class="content">
+      <div class="game">
+        <canvas id="c"></canvas>
+        <div class="controls">
+          <button id="startBtn">Start</button>
+          <button id="dash">Dash (Space)</button>
+          <button id="music">Sound: On</button>
+        </div>
+        <div class="mobile-controls">
+          <button id="upBtn">↑</button>
+          <button id="leftBtn">←</button>
+          <button id="rightBtn">→</button>
+          <button id="downBtn">↓</button>
+        </div>
+      </div>
+      <aside class="sidebar">
+        <div class="score">Score: <span id="score">0</span></div>
+        <div class="small">High score: <strong id="high">0</strong></div>
+        <div style="margin-top:10px" class="small">
+          Controls: Arrow keys / WASD to steer. Space to Dash.
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="dot" style="background:#ff6b6b"></div> Regular Fruit (+10)</div>
+          <div class="legend-item"><div class="dot" style="background:#8b5cf6"></div> Nebula Burst (split head)</div>
+          <div class="legend-item"><div class="dot" style="background:#60a5fa"></div> Chrono Berry (slow time)</div>
+        </div>
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:10px 0">
+        <div style="margin-top:10px;">
+            <div class="small" style="margin-bottom: 6px;">Manual Dialogue</div>
+            <input type="text" id="dialogueInput" placeholder="Type text to speak..." style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); color: white; padding: 6px; border-radius: 4px;">
+            <button id="speakBtn" style="width: 100%; margin-top: 6px;">Speak</button>
+        </div>
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:10px 0">
+        <div class="small">This file stores your high score in localStorage under key <code>nebula_serpent_high</code>.</div>
+      </aside>
+    </div>
+  </div>
+
+  <audio id="rajiniSound" src="sound.mp3"></audio>
+  <audio id="rajiniDeath" src="rajini_fearless_ag.mp3"></audio>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+const startBtn = document.getElementById('startBtn');
+const dashBtn = document.getElementById('dash');
+const musicBtn = document.getElementById('music');
+const scoreEl = document.getElementById('score');
+const highEl = document.getElementById('high');
+const upBtn = document.getElementById('upBtn');
+const downBtn = document.getElementById('downBtn');
+const leftBtn = document.getElementById('leftBtn');
+const rightBtn = document.getElementById('rightBtn');
+
+const dialogueInput = document.getElementById('dialogueInput');
+const speakBtn = document.getElementById('speakBtn');
+const rajiniSound = document.getElementById('rajiniSound');
+const rajiniDeath = document.getElementById('rajiniDeath');
+
+const rajiniHeadImg = new Image();
+rajiniHeadImg.src = 'rajinikanth.jpg';
+
+const sunglassesImg = new Image();
+sunglassesImg.src = 'glasses.png';
+
+const GRID = 24;
+let cellPx;
+
+function resizeCanvas() {
+  const displaySize = canvas.clientWidth;
+  if (canvas.width !== displaySize || canvas.height !== displaySize) {
+    canvas.width = displaySize;
+    canvas.height = displaySize;
+  }
+  cellPx = canvas.width / GRID;
+  if (typeof draw === 'function' && snake) {
+    draw();
+  }
+}
+window.addEventListener('resize', resizeCanvas);
+
+let snakeSpeed = 4;
+let moveCounter = 0;
+let snake, dir, nextDir, food;
+let running = false, paused = false;
+let score = 0, high = Number(localStorage.getItem('nebula_serpent_high') || 0);
+let audioOn = true;
+let palette = {};
+
+function generatePalette(){
+  const base = Math.floor(Math.random() * 360);
+  const neon = (h, s = 80, l = 55) => `hsl(${(base + h) % 360} ${s}% ${l}%)`;
+  palette = {bg: '#020617', body: neon(30, 85, 45), regular: '#ff6b6b'};
+}
+
+function init(startGame = true){
+  generatePalette();
+  highEl.textContent = high;
+  snakeSpeed = 4;
+  moveCounter = 0;
+  const cx = Math.floor(GRID / 2), cy = Math.floor(GRID / 2);
+  snake = Array.from({length: 6}, (_, i) => ({x: cx - i, y: cy, sx: cx - i, sy: cy}));
+  dir = {x: 1, y: 0};
+  nextDir = {x: 1, y: 0};
+  score = 0;
+  scoreEl.textContent = score;
+  placeFood();
+  running = startGame;
+  paused = false;
+  startBtn.textContent = "Pause";
+}
+
+function placeFood(){
+  while(true){
+    let x = Math.floor(Math.random() * GRID);
+    let y = Math.floor(Math.random() * GRID);
+    if (!snake.some(s => s.x === x && s.y === y)) {
+      food = {x, y};
+      return;
+    }
+  }
+}
+
+function tick(){
+  if (!running || paused) return;
+
+  if (nextDir && !(nextDir.x === -dir.x && nextDir.y === -dir.y)) {
+    dir = nextDir;
+  }
+
+  moveCounter++;
+  if (moveCounter < snakeSpeed) {
+    updateSmoothPositions();
+    return;
+  }
+  moveCounter = 0;
+
+  const head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
+
+  if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID || snake.some((s, i) => i > 0 && s.x === head.x && s.y === head.y)) {
+    gameOver();
+    return;
+  }
+
+  snake.unshift({x: head.x, y: head.y, sx: snake[0].x, sy: snake[0].y});
+
+  if (food && head.x === food.x && head.y === food.y) {
+    score += 10;
+    scoreEl.textContent = score;
+
+    if (score > 0 && score % 50 === 0 && snakeSpeed > 1) {
+      snakeSpeed--;
+    }
+
+    if (audioOn && rajiniSound) {
+      rajiniSound.currentTime = 0;
+      rajiniSound.play();
+    }
+    placeFood();
+  } else {
+    snake.pop();
+  }
+  updateSmoothPositions();
+}
+
+function updateSmoothPositions() {
+  for (let i = 0; i < snake.length; i++) {
+    let seg = snake[i];
+    let leader = i > 0 ? snake[i - 1] : {x: seg.x + dir.x, y: seg.y + dir.y};
+    seg.sx += (leader.x - seg.sx) * 0.35;
+    seg.sy += (leader.y - seg.sy) * 0.35;
+  }
+}
+
+function draw(){
+  ctx.fillStyle = palette.bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = 'rgba(159, 176, 200, 0.4)';
+  ctx.lineWidth = 8;
+  ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+  if (food) {
+    ctx.fillStyle = palette.regular;
+    ctx.beginPath();
+    ctx.arc((food.x + 0.5) * cellPx, (food.y + 0.5) * cellPx, cellPx * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (snake) {
+    snake.forEach((s, i) => {
+      const centerX = (s.sx + 0.5) * cellPx;
+      const centerY = (s.sy + 0.5) * cellPx;
+      if (i === 0) {
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(Math.atan2(dir.y, dir.x));
+        ctx.drawImage(rajiniHeadImg, -cellPx / 2, -cellPx / 2, cellPx, cellPx);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = palette.body;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, cellPx * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+  }
+}
+
+function gameOver(){
+  running = false;
+  startBtn.textContent = "Restart";
+  if (score > high) {
+    high = score;
+    localStorage.setItem('nebula_serpent_high', String(high));
+    highEl.textContent = high;
+  }
+  if (audioOn && rajiniDeath) {
+    rajiniDeath.currentTime = 0;
+    rajiniDeath.play();
+  }
+  setTimeout(() => {
+    if (confirm('Game Over! Score: ' + score + '. Play again?')) {
+      init();
+    }
+  }, 200);
+}
+
+function loop(){
+  if (!paused) {
+    tick();
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener('keydown', e => {
+  e.preventDefault();
+  if (e.key === 'ArrowUp' || e.key.toLowerCase() === 'w') nextDir = {x: 0, y: -1};
+  if (e.key === 'ArrowDown' || e.key.toLowerCase() === 's') nextDir = {x: 0, y: 1};
+  if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') nextDir = {x: -1, y: 0};
+  if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') nextDir = {x: 1, y: 0};
+  if (e.key === 'p') {
+      if(running) {
+          paused = !paused;
+          startBtn.textContent = paused ? "Resume" : "Pause";
+      }
+  }
+});
+
+startBtn.addEventListener('click', () => {
+    if (!running) {
+        init(true);
+    } else {
+        paused = !paused;
+        startBtn.textContent = paused ? "Resume" : "Pause";
+    }
+});
+
+musicBtn.addEventListener('click', () => {
+  audioOn = !audioOn;
+  musicBtn.textContent = 'Sound: ' + (audioOn ? 'On' : 'Off');
+});
+
+function handleMove(e, newDir) {
+  e.preventDefault();
+  nextDir = newDir;
+}
+upBtn.addEventListener('touchstart', (e) => handleMove(e, {x: 0, y: -1}));
+downBtn.addEventListener('touchstart', (e) => handleMove(e, {x: 0, y: 1}));
+leftBtn.addEventListener('touchstart', (e) => handleMove(e, {x: -1, y: 0}));
+rightBtn.addEventListener('touchstart', (e) => handleMove(e, {x: 1, y: 0}));
+
+upBtn.addEventListener('click', () => nextDir = {x: 0, y: -1});
+downBtn.addEventListener('click', () => nextDir = {x: 0, y: 1});
+leftBtn.addEventListener('click', () => nextDir = {x: -1, y: 0});
+rightBtn.addEventListener('click', () => nextDir = {x: 1, y: 0});
+
+resizeCanvas();
+init(false);
+startBtn.textContent = "Start";
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
